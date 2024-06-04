@@ -1,6 +1,10 @@
 package astar
 
-import "fmt"
+import (
+	"container/heap"
+	"fmt"
+	"sort"
+)
 
 func nodeEqual(a *PfNode, b *PfNode) bool {
 	return a.pos == b.pos
@@ -19,93 +23,9 @@ func getReturnPathFrom(n *PfNode) [][2]int {
 	return path
 }
 
-func getValidAdjNodes(cn *PfNode, adjSteps *[4]pt, diagSteps *[4]pt, blockerPts *[]pt, colSize, rowSize int) *[]pt {
-	children := make([]pt, 0, 8)
-
-	blockTop := false
-	blockRight := false
-	blockDown := false
-	blockLeft := false
-
-	for i := 0; i < 4; i++ {
-		nx := cn.pos.x + adjSteps[i].x
-		ny := cn.pos.y + adjSteps[i].y
-
-		if nx < 0 || nx >= colSize {
-			continue
-		}
-
-		if ny < 0 || ny >= rowSize {
-			continue
-		}
-
-		isBlock := false
-		for bi := 0; bi < len(*blockerPts); bi++ {
-			if nx == (*blockerPts)[bi].x && ny == (*blockerPts)[bi].y {
-				isBlock = true
-				break
-			}
-		}
-
-		if isBlock {
-			if adjSteps[i].x == 0 && adjSteps[i].y == -1 {
-				blockTop = true
-			} else if adjSteps[i].x == 1 && adjSteps[i].y == 0 {
-				blockRight = true
-			} else if adjSteps[i].x == 0 && adjSteps[i].y == 1 {
-				blockDown = true
-			} else if adjSteps[i].x == -1 && adjSteps[i].y == 0 {
-				blockLeft = true
-			}
-			continue
-		}
-
-		children = append(children, NewPt(nx, ny))
-	}
-
-	for i := 0; i < 4; i++ {
-		nx := cn.pos.x + diagSteps[i].x
-		ny := cn.pos.y + diagSteps[i].y
-
-		if nx < 0 || nx >= colSize {
-			continue
-		}
-
-		if ny < 0 || ny >= rowSize {
-			continue
-		}
-
-		isBlock := false
-		for bi := 0; bi < len(*blockerPts); bi++ {
-			if nx == (*blockerPts)[bi].x && ny == (*blockerPts)[bi].y {
-				isBlock = true
-				break
-			}
-		}
-
-		if isBlock {
-			continue
-		}
-
-		if diagSteps[i].x == 1 && diagSteps[i].y == -1 && blockTop && blockRight {
-			continue
-		} else if diagSteps[i].x == 1 && diagSteps[i].y == 1 && blockRight && blockDown {
-			continue
-		} else if diagSteps[i].x == -1 && diagSteps[i].y == 1 && blockDown && blockLeft {
-			continue
-		} else if diagSteps[i].x == -1 && diagSteps[i].y == -1 && blockLeft && blockTop {
-			continue
-		}
-
-		children = append(children, NewPt(nx, ny))
-	}
-
-	return &children
-}
-
-func isInCloseList(pt pt, closeList *[]*PfNode) bool {
-	for i := 0; i < len(*closeList); i++ {
-		if pt == (*closeList)[i].pos {
+func isNodeBlocked(x, y int, blockerPts *[]pt) bool {
+	for bi := 0; bi < len(*blockerPts); bi++ {
+		if x == (*blockerPts)[bi].x && y == (*blockerPts)[bi].y {
 			return true
 		}
 	}
@@ -113,14 +33,81 @@ func isInCloseList(pt pt, closeList *[]*PfNode) bool {
 	return false
 }
 
-func isInOpenList(pt pt, g int, openList *[]*PfNode) bool {
-	for i := 0; i < len(*openList); i++ {
-		if pt == (*openList)[i].pos && g > (*openList)[i].g {
+func getValidAdjNodes(cn *PfNode, steps *map[string]pt, blockerPts *[]pt, colSize, rowSize int) *map[string]pt {
+	childrenMap := make(map[string]pt)
+	blockMap := map[string]bool{"t": false, "r": false, "b": false, "l": false}
+
+	// need a "sorted map", because adj steps need to be processed first
+	i := 0
+	keySlice := make([]string, 8, 8)
+	for k, _ := range *steps {
+		keySlice[i] = k
+		i++
+	}
+
+	sort.Slice(keySlice, func(i, j int) bool {
+		l1, l2 := len(keySlice[i]), len(keySlice[j])
+		if l1 != l2 {
+			return l1 < l2
+		}
+
+		return keySlice[i] < keySlice[j]
+	})
+
+	for i := 0; i < len(keySlice); i++ {
+		k := keySlice[i]
+		v := (*steps)[k]
+		nx := cn.pos.x + v.x
+		ny := cn.pos.y + v.y
+
+		if nx < 0 || nx >= colSize || ny < 0 || ny >= rowSize {
+			continue
+		}
+
+		isBlock := isNodeBlocked(nx, ny, blockerPts)
+
+		if isBlock {
+			blockMap[k] = true
+			continue
+		}
+
+		if len(k) == 2 {
+			if blockMap[string(k[0])] && blockMap[string(k[1])] {
+				continue
+			}
+		}
+
+		childrenMap[k] = NewPt(nx, ny)
+	}
+
+	return &childrenMap
+}
+
+func isInCloseSlice(pt pt, closeSlice *[]*PfNode) bool {
+	for i := 0; i < len(*closeSlice); i++ {
+		if pt == (*closeSlice)[i].pos {
 			return true
 		}
 	}
 
 	return false
+}
+
+func getIndexInOpenHeap(pt pt, openHeap *pfHeap) int {
+	for i := 0; i < openHeap.Len(); i++ {
+		if pt == (*openHeap)[i].pos {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func buildHeapByInit(array []*PfNode) *pfHeap {
+	pfheap := &pfHeap{}
+	*pfheap = array
+	heap.Init(pfheap)
+	return pfheap
 }
 
 func StartPathFinding(colSize, rowSize int, start [2]int, end [2]int, blockers [][2]int) [][2]int {
@@ -134,45 +121,58 @@ func StartPathFinding(colSize, rowSize int, start [2]int, end [2]int, blockers [
 		blockerPts[i] = NewPt(blockers[i][0], blockers[i][1])
 	}
 
-	openList := []*PfNode{sn}
-	closeList := []*PfNode{}
+	openHeap := buildHeapByInit([]*PfNode{sn})
+	closeSlice := []*PfNode{}
 
-	adjSteps := &[4]pt{NewPt(0, -1), NewPt(1, 0), NewPt(0, 1), NewPt(-1, 0)}
-	diagSteps := &[4]pt{NewPt(1, -1), NewPt(1, 1), NewPt(-1, 1), NewPt(-1, -1)}
+	steps := &map[string]pt{"t": NewPt(0, -1), "r": NewPt(1, 0), "b": NewPt(0, 1), "l": NewPt(-1, 0), "tr": NewPt(1, -1), "br": NewPt(1, 1), "bl": NewPt(-1, 1), "tl": NewPt(-1, -1)}
 
-	for len(openList) > 0 {
-		cn := openList[0]
-
-		openList = openList[1:]
-		closeList = append(closeList, cn)
+	for openHeap.Len() > 0 {
+		cn := heap.Pop(openHeap).(*PfNode)
+		closeSlice = append(closeSlice, cn)
 
 		if nodeEqual(cn, en) {
 			return getReturnPathFrom(cn)
 		}
 
-		children := getValidAdjNodes(cn, adjSteps, diagSteps, &blockerPts, colSize, rowSize)
-		for i := 0; i < len(*children); i++ {
-			child := (*children)[i]
+		validNodes := getValidAdjNodes(cn, steps, &blockerPts, colSize, rowSize)
+		for k, v := range *validNodes {
+			child := v
 
-			if isInCloseList(child, &closeList) {
+			if isInCloseSlice(child, &closeSlice) {
 				continue
 			}
 
-			g := cn.g + 1
-			h := func(a, b pt) int {
-				c := a.x - b.x
-				d := a.y - b.y
-				return c*c + d*d
-			}(child, en.pos)
+			var g int
+			if len(k) == 2 {
+				g = cn.g + 15
+			} else {
+				g = cn.g + 10
+			}
+			h := square(child, en.pos)
 			f := g + h
 
-			if isInOpenList(child, g, &openList) {
+			existingIndex := getIndexInOpenHeap(child, openHeap)
+			if existingIndex != -1 {
+				node := (*openHeap)[existingIndex]
+				if node.g > g {
+					node.g = g
+					node.h = h
+					node.f = f
+					node.parent = cn
+					heap.Fix(openHeap, existingIndex)
+				}
 				continue
 			}
 
-			openList = append(openList, NewPfNode(child, cn, f, g, h))
+			heap.Push(openHeap, NewPfNode(child, cn, f, g, h))
 		}
 	}
 
 	return nil
+}
+
+func square(a, b pt) int {
+	c := a.x - b.x
+	d := a.y - b.y
+	return c*c + d*d
 }

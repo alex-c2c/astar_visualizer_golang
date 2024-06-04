@@ -6,4 +6,5 @@ const (
 	NodeTypeEnd
 	NodeTypeBlocker
 	NodeTypePath
+	NodeTypeOpenPath
 )

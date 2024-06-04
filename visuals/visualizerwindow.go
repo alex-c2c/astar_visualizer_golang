@@ -315,7 +315,7 @@ func getReturnPath(colSize, rowSize int, startNode *Node, endNode *Node, blocker
 	path := astar.StartPathFinding(colSize, rowSize, [2]int{startNode.x, startNode.y}, [2]int{endNode.x, endNode.y}, b)
 	elapseTime := time.Now().Sub(startTime)
 
-	fmt.Printf("Elapse Time: %.0fs\n", elapseTime.Seconds())
+	fmt.Printf("Elapse Time: %dms\n", elapseTime.Milliseconds())
 
 	if path == nil {
 		fmt.Print("Unable to find a path!")

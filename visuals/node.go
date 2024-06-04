@@ -90,7 +90,7 @@ func (nr *nodeRenderer) Layout(size fyne.Size) {
 		nr.cir.Hidden = false
 		nr.text.Hidden = true
 
-		csize := float32(size.Height * 0.75)
+		csize := float32(size.Height * 0.8)
 		coffset := (NodeSize - csize) * 0.5
 
 		nr.cir.FillColor = color.RGBA{R: 255, G: 64, B: 64, A: 255}
@@ -106,6 +106,18 @@ func (nr *nodeRenderer) Layout(size fyne.Size) {
 		coffset := (NodeSize - csize) * 0.5
 
 		nr.cir.FillColor = color.RGBA{R: 0, G: 255, B: 0, A: 128}
+		nr.cir.Resize(fyne.NewSize(csize, csize))
+		nr.cir.Move(fyne.NewPos(coffset, coffset))
+	case common.NodeTypeOpenPath:
+		nr.bg.Hidden = true
+		nr.icon.Hidden = true
+		nr.cir.Hidden = false
+		nr.text.Hidden = true
+
+		csize := float32(size.Height * 0.4)
+		coffset := (NodeSize - csize) * 0.5
+
+		nr.cir.FillColor = color.RGBA{R: 64, G: 64, B: 255, A: 128}
 		nr.cir.Resize(fyne.NewSize(csize, csize))
 		nr.cir.Move(fyne.NewPos(coffset, coffset))
 	}
@@ -191,6 +203,8 @@ func (n *Node) SetNodeType(nodeType int) bool {
 	case common.NodeTypeStart:
 		fallthrough
 	case common.NodeTypeEnd:
+		fallthrough
+	case common.NodeTypeOpenPath:
 		fallthrough
 	case common.NodeTypePath:
 		fallthrough

@@ -1,7 +1,7 @@
 package astar
 
 import (
-	"container/heap"
+	//"container/heap"
 	"fmt"
 	"sort"
 )
@@ -93,7 +93,7 @@ func isInCloseSlice(pt pt, closeSlice *[]*PfNode) bool {
 	return false
 }
 
-func getIndexInOpenHeap(pt pt, openHeap *pfHeap) int {
+func getIndexInOpenHeap(pt pt, openHeap *CustomHeap) int {
 	for i := 0; i < openHeap.Len(); i++ {
 		if pt == (*openHeap)[i].pos {
 			return i
@@ -103,11 +103,11 @@ func getIndexInOpenHeap(pt pt, openHeap *pfHeap) int {
 	return -1
 }
 
-func buildHeapByInit(array []*PfNode) *pfHeap {
-	pfheap := &pfHeap{}
-	*pfheap = array
-	heap.Init(pfheap)
-	return pfheap
+func buildHeapByInit(array []*PfNode) *CustomHeap {
+	heap := &CustomHeap{}
+	*heap = array
+	heap.Fix()
+	return heap
 }
 
 func StartPathFinding(colSize, rowSize int, start [2]int, end [2]int, blockers [][2]int) [][2]int {
@@ -127,7 +127,7 @@ func StartPathFinding(colSize, rowSize int, start [2]int, end [2]int, blockers [
 	steps := &map[string]pt{"t": NewPt(0, -1), "r": NewPt(1, 0), "b": NewPt(0, 1), "l": NewPt(-1, 0), "tr": NewPt(1, -1), "br": NewPt(1, 1), "bl": NewPt(-1, 1), "tl": NewPt(-1, -1)}
 
 	for openHeap.Len() > 0 {
-		cn := heap.Pop(openHeap).(*PfNode)
+		cn := openHeap.Pop()
 		closeSlice = append(closeSlice, cn)
 
 		if nodeEqual(cn, en) {
@@ -159,12 +159,12 @@ func StartPathFinding(colSize, rowSize int, start [2]int, end [2]int, blockers [
 					node.h = h
 					node.f = f
 					node.parent = cn
-					heap.Fix(openHeap, existingIndex)
+					openHeap.Fix()
 				}
 				continue
 			}
 
-			heap.Push(openHeap, NewPfNode(child, cn, f, g, h))
+			openHeap.Push(NewPfNode(child, cn, f, g, h))
 		}
 	}
 
